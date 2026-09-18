@@ -12313,8 +12313,13 @@ struct MetricsTests {
             return String(rest[..<end])
         }()
         let hopGuard = hopFocusBody.range(of: "shouldContinueFocusRetry(")
-        let hopRaise = hopFocusBody.range(of: "focusWindow(")
-        expect(hopGuard != nil && hopRaise != nil && hopGuard!.lowerBound < hopRaise!.lowerBound,
+        // Whatever the pass uses to bring the window forward, the guard comes
+        // first. Naming one of those calls would pin today's spelling and go
+        // red on a refactor that broke nothing.
+        let hopRaise = ["prepareWindowForActivation(", "activateApp(", "focusWindow("]
+            .compactMap { hopFocusBody.range(of: $0)?.lowerBound }
+            .min()
+        expect(hopGuard != nil && hopRaise != nil && hopGuard!.lowerBound < hopRaise!,
                "the hop's arrival pass consults the retry guard before it raises the target")
         let spaceHopCode = ((try? String(
             contentsOfFile: "Sources/Vorssaint/Services/Switcher/SpaceHop.swift",
