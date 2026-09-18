@@ -492,7 +492,8 @@ enum WindowActivator {
                                                  targetPID: pid_t,
                                                  targetWindowOwnerPID: pid_t,
                                                  sourcePID: pid_t?,
-                                                 state: SwitcherWindowFocusRetryState) -> Bool {
+                                                 state: SwitcherWindowFocusRetryState,
+                                                 ignoresForeground: Bool = false) -> Bool {
         guard state.isActive else { return false }
         func currentFrontmostPID() -> pid_t? {
             let reported = NSWorkspace.shared.frontmostApplication?.processIdentifier
@@ -512,7 +513,8 @@ enum WindowActivator {
             // snapshot reported nothing new in exactly the race this guard
             // exists for, and the focus reading below was never taken.
             targetAppWindowIDs: windowIDs(ownerPID: targetWindowOwnerPID, options: .optionAll),
-            targetAppFocusedWindowID: focusedWindowID(for: targetWindowOwnerPID)
+            targetAppFocusedWindowID: focusedWindowID(for: targetWindowOwnerPID),
+            ignoresForeground: ignoresForeground
         )
     }
 
@@ -725,11 +727,14 @@ enum WindowActivator {
                                    sourcePID: pid_t?,
                                    state: SwitcherWindowFocusRetryState) {
         guard let app = NSRunningApplication(processIdentifier: appPID), !app.isTerminated else { return }
+        // Travelling fronts whatever tops each desktop on the way, so this
+        // pass judges the app's own focus rather than who is in front.
         guard shouldContinueFocusRetry(windowID: windowID,
                                        targetPID: appPID,
                                        targetWindowOwnerPID: windowOwnerPID,
                                        sourcePID: sourcePID,
-                                       state: state) else { return }
+                                       state: state,
+                                       ignoresForeground: true) else { return }
         prepareWindowForActivation(windowID: windowID, pid: windowOwnerPID)
         activateApp(app, allWindows: false)
         focusWindow(windowID: windowID, pid: windowOwnerPID)
